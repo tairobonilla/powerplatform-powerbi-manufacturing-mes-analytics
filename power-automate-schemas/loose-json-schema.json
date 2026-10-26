@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Polymorphic Shop-Floor Shift Payload Schema",
+  "description": "Open, nullable schema preventing Parse JSON failures due to blank inputs or regional decimal variations (comma vs period).",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "SupervisorMail": { "type": ["string", "null"] },
+      "SupervisorName": { "type": ["string", "null"] },
+      "Fecha": { "type": ["string", "null"] },
+      "Turno": { "type": ["string", "null"] },
+      "Linea": { "type": ["string", "null"] },
+      "Variedad": { "type": ["string", "null"] },
+      "Presentacion": { "type": ["string", "null"] },
+      "Factor": { "type": ["string", "null"] },
+      "Masas": { "type": ["number", "string", "integer", "null"] },
+      "Cremas": { "type": ["number", "string", "integer", "null"] },
+      "CajasEmpacadas": { "type": ["integer", "number", "string", "null"] },
+      "KGaProducir": { "type": ["number", "string", "integer", "null"] },
+      "KGProducidos": { "type": ["number", "string", "integer", "null"] },
+      "YIELD": { "type": ["number", "string", "null"] },
+      "GE": { "type": ["number", "string", "null"] },
+      "ReporteMTTO": { "type": ["string", "boolean", "null"] },
+      "Comentarios": { "type": ["string", "null"] }
+    },
+    "required": ["Fecha", "Turno", "Linea"]
+  }
+}
