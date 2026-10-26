@@ -1,0 +1,100 @@
+// =========================================================================
+// MODULE 02: WEEKLY CLOSURE & SCHEDULE ADHERENCE (C2S) DAX ENGINE
+// TARGET REPORT: "Cierre Semanal"
+// BUSINESS PURPOSE: Measures manufacturing compliance to master production plan
+//                   (C2S), backlog volume, and Week-over-Week performance.
+// =========================================================================
+
+// --- 1. FULL-OUTER C2S ADHERENCE (PENALIZING UNSCHEDULED PRODUCTION) ---
+
+C2S Semana Real = 
+VAR Plan = SUM('Bridge_Plan_Produccion_Real'[Total KG Planificados Semanal])
+VAR Real = SUM('Bridge_Plan_Produccion_Real'[Total KG Entregados Semanal])
+VAR vPlan = COALESCE(Plan, 0)
+VAR vReal = COALESCE(Real, 0)
+
+RETURN
+IF(
+    vPlan = 0 && vReal = 0,
+    BLANK(),
+    -- If volume was produced but was never planned (Plan = 0), compliance drops to 0%
+    IF(
+        vPlan = 0,
+        0,
+        VAR ErrorRatio = DIVIDE(ABS(vPlan - vReal), vPlan, 0)
+        RETURN MAX(0, 1 - ErrorRatio)
+    )
+)
+
+Total KG por Entregar = 
+VAR _Plan = SUM('Bridge_Plan_Produccion_Real'[Total KG Planificados Semanal])
+VAR _Real = SUM('Bridge_Plan_Produccion_Real'[Total KG Entregados Semanal])
+RETURN
+IF((_Plan - _Real) < 0, 0, (_Plan - _Real))
+
+// --- 2. WEEK-OVER-WEEK (WoW) COMPARISON MEASURES ---
+
+Volumen Semana Actual = 
+VAR _SemanaSel = SELECTEDVALUE('Dim_Calendar'[Semana])
+RETURN
+CALCULATE(
+    SUM('Fact_Production'[KG Totales Empacados]),
+    REMOVEFILTERS('Dim_Calendar'),
+    'Dim_Calendar'[Semana] = _SemanaSel
+) + 0
+
+Volumen Semana Anterior = 
+VAR _SemanaSel = SELECTEDVALUE('Dim_Calendar'[Semana])
+VAR _FechaRef = 
+    CALCULATE(
+        MAX('Dim_Calendar'[Date]),
+        REMOVEFILTERS('Dim_Calendar'),
+        'Dim_Calendar'[Semana] = _SemanaSel
+    )
+VAR _SemanaAnt = 
+    CALCULATE(
+        MAX('Dim_Calendar'[Semana]),
+        REMOVEFILTERS('Dim_Calendar'),
+        'Dim_Calendar'[Date] = _FechaRef - 7
+    )
+RETURN
+CALCULATE(
+    SUM('Fact_Production'[KG Totales Empacados]),
+    REMOVEFILTERS('Dim_Calendar'),
+    'Dim_Calendar'[Semana] = _SemanaAnt
+) + 0
+
+// --- 3. DYNAMIC METRIC CALLOUT LABELS ---
+
+Etiqueta Diferencia Volumen Semana = 
+VAR _Entregado = [Volumen Entregado Semana]
+VAR _Planificado = [Volumen Planificado Semana]
+RETURN
+IF(
+    ISBLANK(_Entregado) || _Planificado = 0,
+    BLANK(),
+    VAR _Diferencia = _Entregado - _Planificado
+    RETURN
+    IF(
+        _Diferencia >= 0,
+        "+" & FORMAT(_Diferencia, "#,##0") & " KG",
+        "-" & FORMAT(ABS(_Diferencia), "#,##0") & " KG"
+    )
+)
+
+Etiqueta Variacion Volumen Semana = 
+VAR _Entregado = [Volumen Entregado Semana]
+VAR _Planificado = [Volumen Planificado Semana]
+RETURN
+IF(
+    ISBLANK(_Entregado) || _Planificado = 0,
+    BLANK(),
+    VAR _Diferencia = _Entregado - _Planificado
+    VAR _Pct = DIVIDE(_Diferencia, _Planificado)
+    RETURN
+    IF(
+        _Diferencia >= 0,
+        "+" & FORMAT(_Pct, "0.0%"),
+        "-" & FORMAT(ABS(_Pct), "0.0%")
+    )
+)
