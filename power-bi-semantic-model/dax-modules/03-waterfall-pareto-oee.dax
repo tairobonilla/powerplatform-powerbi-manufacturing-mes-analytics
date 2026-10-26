@@ -1,0 +1,93 @@
+// =========================================================================
+// MODULE 03: 23-STEP TIME LOSS WATERFALL & OEE PARETO ENGINE
+// TARGET REPORT: "Waterfall y Paradas"
+// BUSINESS PURPOSE: Deconstructs plant operational losses from Calendar Time
+//                   down to Net Operating Time, Availability, and Quality.
+// =========================================================================
+
+// --- 1. OEE / GE CORE FORMULATION ---
+
+// Operational Availability % = Operating Time / Productive Time
+% GE Disponibilidad = 
+DIVIDE( [Tiempo Operativo], [Tiempo Productivo], 0 )
+
+// Operating Performance % = (Good Run Time + Scrap Time) / Operating Time
+% GE Rendimiento = 
+DIVIDE( [WXFGT] + [WXQL], [Tiempo Operativo], 0 )
+
+// Quality Rate % = Good Run Time / (Good Run Time + Scrap Time)
+% GE Calidad = 
+DIVIDE( [WXFGT], [WXFGT] + [WXQL], 0 )
+
+// Overall Operational Efficiency % GE
+% GE = 
+DIVIDE( [WXFGT], [Tiempo Disponible], 0 )
+
+// Technical OEE % (Relative to Productive Available Time)
+% OEE = 
+DIVIDE( [WXFGT], [Tiempo Productivo], 0 )
+
+// Asset Utilization % AU
+% AU = 
+DIVIDE( [WXFGT], [Tiempo Máximo], 0 )
+
+// --- 2. MULTI-LEVEL HIERARCHICAL WATERFALL SWITCH ---
+
+Waterfall Niveles = 
+VAR vKey = SELECTEDVALUE('Malla_Waterfall'[DAX-L3])
+VAR vGrupo = SELECTEDVALUE('Malla_Waterfall'[Grupo_Jerarquia])
+VAR vEsDetalle = ISINSCOPE('Malla_Waterfall'[Concepto])
+
+RETURN
+IF (
+    vEsDetalle,
+    -- Level 2: Specific Loss Step Breakdown
+    SWITCH (
+        vKey,
+        "Tiempo Máximo",       [Tiempo Máximo],
+        "WH11",                [WH11],
+        "WH12",                [WH12],
+        "WH13",                [WH13],
+        "Tiempo Disponible",   [Tiempo Disponible],
+        "WH21",                [WH21],
+        "WH22",                [WH22],
+        "WH23",                [WH23],
+        "WH24",                [WH24],
+        "WH25",                [WH25],
+        "WH26",                [WH26],
+        "WH27",                [WH27],
+        "Tiempo Productivo",   [Tiempo Productivo],
+        "WH31",                [WH31],
+        "WH32",                [WH32],
+        "WH33",                [WH33],
+        "WH34",                [WH34],
+        "WH35",                [WH35],
+        "WH36",                [WH36],
+        "Tiempo Operativo",    [Tiempo Operativo],
+        "WXSL",                [WXSL],
+        "WXQL",                [WXQL],
+        "WXFGT",               [WXFGT],
+        BLANK()
+    ),
+    -- Level 1: Collapsed Parent Categories
+    SWITCH (
+        vGrupo,
+        "01. Tiempo Teórico Total",        [Tiempo Máximo],
+        "02. Paros LNO / ND",              [WH11] + [WH12] + [WH13],
+        "03. Tiempo Disponible",           [Tiempo Disponible],
+        "04. Paradas Planificadas",        [WH21] + [WH22] + [WH23] + [WH24] + [WH25] + [WH26] + [WH27],
+        "05. Tiempo Productivo",           [Tiempo Productivo],
+        "06. Paradas No Planificadas",      [WH31] + [WH32] + [WH33] + [WH34] + [WH35] + [WH36],
+        "07. Tiempo Operativo",            [Tiempo Operativo],
+        "08. Pérdidas Eficiencia/Calidad",  [WXSL] + [WXQL],
+        "09. Salida Neta FGT",             [WXFGT],
+        BLANK()
+    )
+)
+
+// Subtitle summary string for KPI visual cards
+Subtitulo Desempeño = 
+"T. Disponible: " & FORMAT([Tiempo Disponible], "#,##0.0") & " hrs | " &
+"FGT: " & FORMAT([WXFGT], "#,##0.0") & " hrs | " &
+"GE: " & FORMAT([% GE], "0.0%") & " | " &
+"OEE: " & FORMAT([% OEE], "0.0%")
