@@ -1,0 +1,74 @@
+// =========================================================================
+// MODULE 01: DMS (DAILY MANAGEMENT SYSTEM) & SHIFT CLOSURE DAX ENGINE
+// TARGET REPORTS: "Informe DMS" & "Resumen de Turno"
+// BUSINESS PURPOSE: Evaluates previous day (D-1) operational closure, 
+//                   shift handover mass balance, and preliminary Yield/GE.
+// =========================================================================
+
+// --- 1. DMS TIME OFFSETS (+1 DAY DISPATCH LOGIC) ---
+
+// Evaluated in Dim_Calendar to align yesterday's operational day with today's DMS meeting
+DiaDMS = 'Dim_Calendar'[Date] + 1
+
+DMS_Display_Label = 
+'Dim_Calendar'[NombreDiaDMS] & " " & 
+FORMAT('Dim_Calendar'[DiaDMS], "DD/MM") & " - " & 
+'Dim_Calendar'[Semana] & " | " & 
+'Dim_Calendar'[Periodo] & " | " & 
+'Dim_Calendar'[Trimestre] & "-" & 'Dim_Calendar'[Año]
+
+// --- 2. MASS BALANCE & OPERATIONAL YIELD ---
+
+Total KG a Producir = 
+SUM('Fact_Production'[KG Totales a Producir]) + 0
+
+Total KG Empacados = 
+SUM('Fact_Production'[KG Totales Empacados]) + 0
+
+Total KG a Granel = 
+SUM('Fact_Production'[KG Totales a Granel]) + 0
+
+Total KG de Desperdicio = 
+SUM('Fact_Production'[KG Totales de Desperdicio]) + 0
+
+// Net Scrap isolating Overweight (OW) packaging variance
+Total KG de Desperdicio Real = 
+SUM('Fact_Production'[KG Totales de Desperdicio Real]) + 0
+
+// Production Yield % (Good Output / Theoretical Batch Input)
+YIELD = 
+VAR Numerador = [Total KG a Granel] + [Total KG Empacados]
+VAR Denominador = [Total KG a Producir]
+RETURN
+DIVIDE(Numerador, Denominador, 0) + 0
+
+// Yield Loss Rate
+YIELDi = 1 - [YIELD]
+
+// --- 3. OPERATIONAL EFFICIENCY (GE / OEE BASE) ---
+
+// GE = Net Run Operating Hours (HFGT) / Shift Available Hours
+GE = 
+VAR Numerador = SUM('Fact_Production'[HFGT])
+VAR Denominador = SUM('Fact_Production'[Tiempo Disponible])
+RETURN
+DIVIDE(Numerador, Denominador, 0) + 0
+
+// --- 4. REAL-TIME SHIFT FILTER (AUTOMATED HANDOVER) ---
+
+// Automatically filters active visuals for current calendar date and Shift 1
+Filtro Reporte Turno 1 = 
+VAR Hoy = TODAY()
+VAR TurnoDeseado = "Turno 1"
+RETURN
+IF(
+    SELECTEDVALUE('Fact_Production'[Fecha]) = Hoy && 
+    SELECTEDVALUE('Fact_Production'[Turno]) = TurnoDeseado,
+    1, 0
+)
+
+// Dynamic Card Header displaying shift context
+Resumen-T = 
+"Resumen del " & 'Fact_Production'[Turno] & 
+" - " & FORMAT('Fact_Production'[Fecha], "dd/mm/yyyy") & " | " & 
+RELATED('Dim_Calendar'[Semana])
