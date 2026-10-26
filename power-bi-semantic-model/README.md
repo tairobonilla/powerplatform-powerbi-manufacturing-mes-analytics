@@ -30,23 +30,23 @@ To guarantee a **Single Version of the Truth (SVOT)** across Plant Operations, C
 ```mermaid
 flowchart LR
     subgraph Source [Data Layer]
-        SP[(🗄️ SharePoint Online<br/>5 Transactional Lists<br/>7 Master Excel/Lists)]
+        SP[("SharePoint Online<br/>5 Transactional Lists<br/>7 Master Excel/Lists")]
     end
 
     subgraph Hub [Semantic Layer - Import Mode]
-        Model[[🧠 RDT Semantic Model<br/>20 Tables | 25 Relationships<br/>170+ DAX Measures & Calc Columns]]
+        Model[["RDT Semantic Model<br/>20 Tables - 25 Relationships<br/>170+ DAX Measures & Calc Columns"]]
     end
 
     subgraph Spokes [Presentation Layer - Live Connection Thin Reports]
-        W0[🛠️ RDT Workbench Model<br/><i>Base Engineering Report</i>]
-        R1[📋 1. Informe DMS<br/><i>Daily Management System +1d</i>]
-        R2[⏱️ 2. Resumen de Turno<br/><i>Shift Handover KPIs</i>]
-        R3[📅 3. Cierre Semanal<br/><i>Weekly WoW & C2S Review</i>]
-        R4[📉 4. Waterfall y Paradas<br/><i>23-Step OEE/GE & Pareto</i>]
-        R5[⚡ 5. Volumen en Sobretiempo<br/><i>Regular vs. OT Shift Analysis</i>]
-        R6[⚙️ 6. Capacidad y Desempeño<br/><i>Demonstrated vs. Effective Cap</i>]
-        R7[📊 7. Cierre Mensual<br/><i>Period-over-Period PoP</i>]
-        R8[🎯 8. Informe Estratégico Anual<br/><i>Dynamic PQH & YTD Executive</i>]
+        W0["RDT Workbench Model<br/>Base Engineering Report"]
+        R1["1. Informe DMS<br/>Daily Management System +1d"]
+        R2["2. Resumen de Turno<br/>Shift Handover KPIs"]
+        R3["3. Cierre Semanal<br/>Weekly WoW & C2S Review"]
+        R4["4. Waterfall y Paradas<br/>23-Step OEE/GE & Pareto"]
+        R5["5. Volumen en Sobretiempo<br/>Regular vs. OT Shift Analysis"]
+        R6["6. Capacidad y Desempeño<br/>Demonstrated vs. Effective Cap"]
+        R7["7. Cierre Mensual<br/>Period-over-Period PoP"]
+        R8["8. Informe Estratégico Anual<br/>Dynamic PQH & YTD Executive"]
     end
 
     SP -->|Power Query M<br/>OData v2.0| Model
