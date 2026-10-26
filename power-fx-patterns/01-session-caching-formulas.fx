@@ -24,3 +24,4 @@ fxCacheEffects = 'MasterData_Efectos';
 
 // 7. Recipe Formulations (Doughs & Creams Matrices)
 fxCacheRecipes = 'MasterData_MasasyCremas';
+
