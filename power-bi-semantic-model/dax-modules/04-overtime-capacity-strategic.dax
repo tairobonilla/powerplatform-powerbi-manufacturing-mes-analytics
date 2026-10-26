@@ -1,0 +1,89 @@
+// =========================================================================
+// MODULE 04: OVERTIME, INDUSTRIAL CAPACITY & STRATEGIC HORIZONS (PQH)
+// TARGET REPORTS: "Volumen en Sobretiempo", "Capacidad y Desempeño", 
+//                 "Cierre Mensual" & "Informe Estratégico Anual"
+// BUSINESS PURPOSE: Crewing & overtime split analysis, demonstrated vs effective 
+//                   capacity modeling (Nexus), and dynamic financial axis (P/Q/H/FY).
+// =========================================================================
+
+// --- 1. OVERTIME (OT) & LABOR COST RATIOS ---
+
+Volumen Horario Laboral = 
+CALCULATE(
+    SUM('Fact_Production'[KG Totales Empacados]),
+    'Fact_Production'[Tipo Horario] = "Horario Laboral"
+) / 1000 + 0
+
+Volumen Sobretiempo = 
+CALCULATE(
+    SUM('Fact_Production'[KG Totales Empacados]),
+    'Fact_Production'[Tipo Horario] = "Sobretiempo"
+) / 1000 + 0
+
+// Overtime % Share of Total Volume
+Sobretiempo % = 
+DIVIDE(
+    [Volumen Sobretiempo],
+    [Volumen Horario Laboral] + [Volumen Sobretiempo],
+    0
+)
+
+// --- 2. DEMONSTRATED VS. EFFECTIVE CAPACITY (NEXUS ENGINE) ---
+
+// Real output rate per effective operating hour
+Capacidad Demostrada = 
+VAR TotalKg = SUM('Fact_Production'[KG Producidos])
+VAR HorasEfectivas = SUM('Fact_Production'[Tiempo Efectivo])
+RETURN
+DIVIDE(TotalKg, HorasEfectivas, BLANK())
+
+// Statistically proven GE using median filter over non-zero operating shifts
+GE Demostrado = 
+MEDIANX(
+    FILTER(
+        'Fact_Production',
+        NOT(ISBLANK('Fact_Production'[GE Turno])) &&
+        'Fact_Production'[GE Turno] > 0
+    ),
+    'Fact_Production'[GE Turno]
+)
+
+// Capacity Gap: Demostrada vs. Efectiva
+Brecha Capacidad = 
+[Capacidad Demostrada] - [Capacidad Efectiva]
+
+// --- 3. DYNAMIC STRATEGIC AXIS (PERIOD, QUARTER, HALF-YEAR, FULL YEAR) ---
+
+// Slicer filter that isolates elapsed horizons (P01..P03 -> Q1; P04..P06 -> Q2, H1...)
+Filter-PQH-Dinamico = 
+VAR _PeriodoTexto = SELECTEDVALUE('Fact_Production'[PeriodoContraloria])
+VAR _NumPeriodo = IF(ISBLANK(_PeriodoTexto) || _PeriodoTexto = "Todas", BLANK(), VALUE(SUBSTITUTE(UPPER(_PeriodoTexto), "P", "")))
+VAR _EtiquetaEje = SELECTEDVALUE('Malla_PQH'[Etiqueta])
+
+RETURN
+IF(
+    ISBLANK(_NumPeriodo),
+    1,
+    SWITCH(
+        TRUE(),
+        _NumPeriodo <= 3, IF(_EtiquetaEje IN {"P01", "P02", "P03", "Q1"}, 1, 0),
+        _NumPeriodo <= 6, IF(_EtiquetaEje IN {"Q1", "P04", "P05", "P06", "Q2", "H1"}, 1, 0),
+        _NumPeriodo <= 9, IF(_EtiquetaEje IN {"H1", "P07", "P08", "P09", "Q3", "H2", "FY"}, 1, 0),
+        IF(_EtiquetaEje IN {"H1", "Q3", "P10", "P11", "P12", "Q4", "H2", "FY"}, 1, 0)
+    )
+)
+
+// Year-to-Date (YTD) delivered tonnage
+Volumen YTD Entregado = 
+VAR _PeriodoTexto = SELECTEDVALUE('Fact_Production'[PeriodoContraloria])
+VAR _NumSel = IF(ISBLANK(_PeriodoTexto) || _PeriodoTexto = "Todas", 12, VALUE(SUBSTITUTE(UPPER(_PeriodoTexto), "P", "")))
+RETURN
+CALCULATE(
+    DIVIDE(SUM('Fact_Production'[KG Totales Empacados]), 1000),
+    REMOVEFILTERS('Fact_Production'[PeriodoContraloria]),
+    FILTER(
+        ALL('Fact_Production'[PeriodoContraloria]),
+        VAR _P = VALUE(SUBSTITUTE(UPPER('Fact_Production'[PeriodoContraloria]), "P", ""))
+        RETURN _P <= _NumSel
+    )
+)
