@@ -1,0 +1,536 @@
+createOrReplace
+
+	model Model
+		culture: es-MX
+		defaultPowerBIDataSourceVersion: powerBI_V3
+		sourceQueryCulture: es-ES
+		dataAccessOptions
+			legacyRedirects
+			returnErrorValuesAsNull
+
+		// =========================================================================
+		// TABLE: Dim_Calendar (BQ-Malla-Calendario)
+		// =========================================================================
+		table 'BQ-Malla-Calendario'
+			lineageTag: e9add678-3089-4a2a-af7c-98daa8213a9d
+			dataCategory: Time
+
+			measure 'C2S Fix' = 0
+				formatString: 0
+
+			column Date
+				isKey
+				formatString: dd/mm/yyyy
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Date]
+
+			column Año
+				formatString: 0
+				summarizeBy: sum
+				isNameInferred
+				sourceColumn: [Año]
+
+			column Mes
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Mes]
+
+			column Trimestre
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Trimestre]
+
+			column 'Año Mes'
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Año Mes]
+
+			column Periodo
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Periodo]
+
+			column Semana
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Semana]
+
+			column 'Día Semana'
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Día Semana]
+
+			column 'Año Semana'
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Año Semana]
+
+			column 'Numero Mes'
+				formatString: 0
+				summarizeBy: sum
+				isNameInferred
+				sourceColumn: [Numero Mes]
+
+			column DMS = 'BQ-Malla-Calendario'[NombreDiaDMS] & " " & (FORMAT([DiaDMS], "DD/MM") & " - " & 'BQ-Malla-Calendario'[Semana] & " | " & 'BQ-Malla-Calendario'[Periodo] & " | " & 'BQ-Malla-Calendario'[Trimestre] & "-" & 'BQ-Malla-Calendario'[Año])
+				summarizeBy: none
+
+			column 'Año Trimestre' = 'BQ-Malla-Calendario'[Año] & "-" & 'BQ-Malla-Calendario'[Trimestre]
+				summarizeBy: none
+
+			column DiaDMS = 'BQ-Malla-Calendario'[Date] + 1
+				formatString: Short Date
+				summarizeBy: none
+
+			column NombreDiaDMS = 
+					VAR DiaCompleto = FORMAT([DiaDMS], "dddd")
+					RETURN
+					UPPER(LEFT(DiaCompleto, 1)) & RIGHT(DiaCompleto, LEN(DiaCompleto) - 1)
+				summarizeBy: none
+
+			column Semestre = 
+					IF (
+					    MONTH ( 'BQ-Malla-Calendario'[Date] ) <= 6,
+					    "H1",
+					    "H2"
+					)
+				summarizeBy: none
+
+			column 'Semana Anterior' = 
+					VAR _Texto = 'BQ-Malla-Calendario'[Semana]
+					VAR _NumeroSemana = VALUE(SUBSTITUTE(UPPER(_Texto), "W", ""))
+					VAR _NumeroAnterior = IF(_NumeroSemana = 1, 52, _NumeroSemana - 1)
+					RETURN
+					"Semana W" & FORMAT(_NumeroAnterior, "00")
+				summarizeBy: none
+
+			column 'Periodo Anterior' = 
+					VAR _Texto = 'BQ-Malla-Calendario'[Periodo]
+					VAR _NumeroSemana = VALUE(SUBSTITUTE(UPPER(_Texto), "P", ""))
+					VAR _NumeroAnterior = IF(_NumeroSemana = 1, 12, _NumeroSemana - 1)
+					RETURN
+					"Periodo P" & FORMAT(_NumeroAnterior, "00")
+				summarizeBy: none
+
+			partition 'BQ-Malla-Calendario' = calculated
+				mode: import
+				source = 
+						ADDCOLUMNS (
+						    CALENDAR ( DATE ( 2020, 1, 1 ), DATE ( 2029, 1, 31 ) ),
+						    "Año", YEAR ( [Date] ),
+						    "Mes", FORMAT ( [Date], "MMMM" ),
+						    "Numero Mes", MONTH ( [Date] ),
+						    "Periodo", "P" & FORMAT ( MONTH ( [Date] ), "00" ),
+						    "Semana", "W" & FORMAT ( WEEKNUM ( [Date], 2 ), "00" ),
+						    "Trimestre", "Q" & QUARTER ( [Date] ),
+						    "Día Semana", FORMAT ( [Date], "dddd" ),
+						    "Año Mes", FORMAT ( [Date], "YYYY-MM" ),
+						    "Año Semana", YEAR ( [Date] ) & "-W" & FORMAT ( WEEKNUM ( [Date], 2 ), "00" )
+						)
+
+		// =========================================================================
+		// TABLE: Fact_Production (BQ-Reportes-Produccion)
+		// =========================================================================
+		table 'BQ-Reportes-Produccion'
+			lineageTag: 141a1ec8-f68b-4787-91ab-94181258b039
+
+			measure YIELD = 
+					VAR Numerador = SUM('BQ-Reportes-Produccion'[KG Totales a Granel]) + SUM('BQ-Reportes-Produccion'[KG Totales Empacados])
+					VAR Denominador = SUM('BQ-Reportes-Produccion'[KG Totales a Producir])
+					RETURN
+					DIVIDE(Numerador, Denominador, 0) + 0
+
+			measure GE = 
+					VAR Numerador = SUM('BQ-Reportes-Produccion'[HFGT])
+					VAR Denominador = SUM('BQ-Reportes-Produccion'[Tiempo Disponible])
+					RETURN
+					DIVIDE(Numerador, Denominador, 0) + 0
+
+			measure 'Total KG Empacados' = SUM('BQ-Reportes-Produccion'[KG Totales Empacados]) + 0
+
+			measure 'Total KG a Granel' = SUM('BQ-Reportes-Produccion'[KG Totales a Granel]) + 0
+
+			measure 'Total KG de Desperdicio' = SUM('BQ-Reportes-Produccion'[KG Totales de Desperdicio]) + 0
+
+			measure 'Total KG de Desperdicio Real' = SUM('BQ-Reportes-Produccion'[KG Totales de Desperdicio Real]) + 0
+
+			measure C2S = 
+					VAR Plan = [Total KG Planificados]
+					VAR Real = [Total KG Empacados]
+					VAR ErrorRatio = DIVIDE(ABS(Plan - Real), Plan, 0)
+					VAR Resultado = 1 - ErrorRatio
+					RETURN
+					IF(Plan = 0, 0, MAX(0, Resultado))
+				formatString: 0
+
+			measure 'Volumen Horario Laboral' = 
+					CALCULATE(
+					    SUM('BQ-Reportes-Produccion'[KG Totales Empacados]),
+					    'BQ-Reportes-Produccion'[Tipo Horario] = "Horario Laboral"
+					)/1000 + 0
+
+			measure 'Volumen Sobretiempo' = 
+					CALCULATE(
+					    SUM('BQ-Reportes-Produccion'[KG Totales Empacados]),
+					    'BQ-Reportes-Produccion'[Tipo Horario] = "Sobretiempo"
+					)/1000 + 0
+				formatString: 0.00
+
+			measure Sobretiempo = 
+					DIVIDE(
+					    [Volumen Sobretiempo],
+					    [Volumen Horario Laboral] + [Volumen Sobretiempo],
+					    0
+					)
+				formatString: 0.00\ %;-0.00\ %;0.00\ %
+
+			measure 'Volumen Promedio Efectivo (TON)' = ```
+					VAR _TablaTurnosEfectivos = 
+					    ADDCOLUMNS(
+					        SUMMARIZE(
+					            'BQ-Reportes-Produccion',
+					            'BQ-Malla-Calendario'[Date],
+					            'BQ-Reportes-Produccion'[Turno]
+					        ),
+					        "@TonPorTurno", DIVIDE(CALCULATE(SUM('BQ-Reportes-Produccion'[KG Totales Empacados])), 1000)
+					    )
+					VAR _PromedioEfectivo = 
+					    AVERAGEX(
+					        FILTER(_TablaTurnosEfectivos, [@TonPorTurno] > 0),
+					        [@TonPorTurno]
+					    )
+					RETURN
+					_PromedioEfectivo
+					```
+
+			column Title
+				dataType: string
+				summarizeBy: none
+				sourceColumn: Title
+
+			column Fecha
+				dataType: dateTime
+				formatString: Short Date
+				summarizeBy: none
+				sourceColumn: Fecha
+
+			column Turno
+				dataType: string
+				summarizeBy: none
+				sourceColumn: Turno
+
+			column Linea
+				dataType: string
+				summarizeBy: none
+				sourceColumn: Linea
+
+			column Variedad
+				dataType: string
+				summarizeBy: none
+				sourceColumn: Variedad
+
+			column Presentacion
+				dataType: string
+				summarizeBy: none
+				sourceColumn: Presentacion
+
+			column VelocidadLineal = LOOKUPVALUE('Values-BQ: Velocidades de Linea'[CapWaterfall], 'Values-BQ: Velocidades de Linea'[SKP], 'BQ-Reportes-Produccion'[SKP])
+				formatString: 0.00
+				summarizeBy: sum
+
+			column 'Tipo Horario' = ```
+					VAR _TurnoTexto = 'BQ-Reportes-Produccion'[Turno]
+					VAR _NumTurno = 
+					    SWITCH(
+					        TRUE(),
+					        CONTAINSSTRING(_TurnoTexto, "1"), 1,
+					        CONTAINSSTRING(_TurnoTexto, "2"), 2,
+					        CONTAINSSTRING(_TurnoTexto, "3"), 3,
+					        1
+					    )
+					VAR _Fecha = RELATED('BQ-Malla-Calendario'[Date])
+					VAR _DiaSemana = WEEKDAY(_Fecha, 2)
+					VAR _LineaActual = 'BQ-Reportes-Produccion'[Linea]
+					VAR _SemanaActual = RELATED('BQ-Malla-Calendario'[Semana])
+					VAR _TurnosDelJueves = 
+					    CALCULATE(
+					        DISTINCTCOUNT('BQ-Reportes-Produccion'[Turno]),
+					        FILTER(
+					            ALL('BQ-Reportes-Produccion'),
+					            'BQ-Reportes-Produccion'[Linea] = _LineaActual &&
+					            RELATED('BQ-Malla-Calendario'[Semana]) = _SemanaActual &&
+					            WEEKDAY(RELATED('BQ-Malla-Calendario'[Date]), 2) = 4
+					        )
+					    )
+					VAR _EsquemaTurnos = COALESCE(_TurnosDelJueves, 3)
+					RETURN
+					SWITCH(
+					    TRUE(),
+					    _DiaSemana >= 6, "Sobretiempo",
+					    _DiaSemana <= 4 && _NumTurno <= _EsquemaTurnos, "Horario Laboral",
+					    _DiaSemana = 5 && _EsquemaTurnos > 1 && _NumTurno <= (_EsquemaTurnos - 1), "Horario Laboral",
+					    "Sobretiempo"
+					)
+					```
+				summarizeBy: none
+
+			partition 'BQ-Reportes-Produccion' = m
+				mode: import
+				source = 
+						let
+						    Origen = SharePoint.Tables("https://tenant.sharepoint.com/sites/MES_Production_Hub/", [Implementation="2.0", ViewMode="All"]),
+						    ItemsTable = Origen{[Id="326ab548-9890-451a-8bf9-490f283981a5"]}[Items],
+						    CleanedColumns = Table.RemoveColumns(ItemsTable,{"ContentType", "Created", "CreatedBy", "Modified", "ModifiedBy", "Attachments"}),
+						    RenamedFactor = Table.RenameColumns(CleanedColumns,{{"Factor O", "FactorName"}}),
+						    CombinedSKU = Table.NestedJoin(RenamedFactor, {"Linea", "Variedad", "Presentacion", "FactorName"}, #'Values-BQ: SKU', {"Linea", "Variedad", "Presentacion", "FactorL"}, "Values-BQ: SKU", JoinKind.LeftOuter),
+						    ExpandedSKU = Table.ExpandTableColumn(CombinedSKU, "Values-BQ: SKU", {"PesoCaja"}, {"Values-BQ: SKU.PesoCaja"})
+						in
+						    ExpandedSKU
+
+		// =========================================================================
+		// TABLE: Fact_Downtime (BQ-Reportes-Paradas)
+		// =========================================================================
+		table 'BQ-Reportes-Paradas'
+			lineageTag: c473f44b-0e70-4827-b952-73531940d7f8
+
+			column Title
+				dataType: string
+				summarizeBy: none
+				sourceColumn: Title
+
+			column Fecha
+				dataType: dateTime
+				formatString: Short Date
+				summarizeBy: none
+				sourceColumn: Fecha
+
+			column Turno
+				dataType: string
+				summarizeBy: none
+				sourceColumn: Turno
+
+			column Linea
+				dataType: string
+				summarizeBy: none
+				sourceColumn: Linea
+
+			column 'Tipo de Parada'
+				dataType: string
+				summarizeBy: none
+				sourceColumn: Tipo de Parada
+
+			column 'Tiempo de Parada'
+				dataType: double
+				summarizeBy: sum
+				sourceColumn: Tiempo de Parada
+
+			column TTP = 'BQ-Reportes-Paradas'[TPE] + 'BQ-Reportes-Paradas'[TPL]
+				formatString: 0.00
+				summarizeBy: sum
+
+			partition 'BQ-Reportes-Paradas' = m
+				mode: import
+				source = 
+						let
+						    Origen = SharePoint.Tables("https://tenant.sharepoint.com/sites/MES_Production_Hub/", [Implementation="2.0", ViewMode="All"]),
+						    ItemsTable = Origen{[Id="e3598d91-dfd4-4449-95c5-777a195bc117"]}[Items],
+						    CleanedColumns = Table.RemoveColumns(ItemsTable,{"ContentType", "Created", "Modified", "Attachments"}),
+						    TransformedTypes = Table.TransformColumnTypes(CleanedColumns,{{"Fecha", type datetime}})
+						in
+						    TransformedTypes
+
+		// =========================================================================
+		// TABLE: Malla_Waterfall (BQ-Malla-Waterfall)
+		// =========================================================================
+		table 'BQ-Malla-Waterfall'
+			lineageTag: 27d7fc78-4d98-4b77-a216-9193f4c50938
+
+			measure '% GE' = DIVIDE( [WXFGT], [Tiempo Disponible], 0 )
+				formatString: 0.00\ %;-0.00\ %;0.00\ %
+
+			measure '% OEE' = DIVIDE( [WXFGT], [Tiempo Productivo], 0 )
+				formatString: 0.00\ %;-0.00\ %;0.00\ %
+
+			measure 'Pareto - % Acumulado' = ```
+					VAR vValorActual = [Pareto - Horas Pérdida]
+					VAR vOrdenActual = SELECTEDVALUE('BQ-Malla-Waterfall'[Orden])
+					VAR vTablaPerdidas = 
+					    ADDCOLUMNS(
+					        FILTER(
+					            ALLSELECTED('BQ-Malla-Waterfall'),
+					            'BQ-Malla-Waterfall'[Tipo] = "Pérdida" &&
+					            'BQ-Malla-Waterfall'[Orden] > 5
+					        ),
+					        "@Horas", [WF - Perdidas]
+					    )
+					VAR vTotalPerdidas = SUMX(FILTER(vTablaPerdidas, [@Horas] > 0), [@Horas])
+					VAR vHorasAcumuladas = 
+					    SUMX(
+					        FILTER(
+					            vTablaPerdidas,
+					            [@Horas] > 0 && (
+					                [@Horas] > vValorActual || 
+					                ([@Horas] = vValorActual && 'BQ-Malla-Waterfall'[Orden] <= vOrdenActual)
+					            )
+					        ),
+					        [@Horas]
+					    )
+					RETURN
+					IF (
+					    NOT ISBLANK(vValorActual) && vValorActual > 0,
+					    DIVIDE( vHorasAcumuladas, vTotalPerdidas, 0 ),
+					    BLANK()
+					)
+					```
+				formatString: 0.0\ %;-0.0\ %;0.0\ %
+
+			column Orden
+				formatString: 0
+				summarizeBy: sum
+				sourceColumn: [Orden]
+
+			column DAX-L3
+				summarizeBy: none
+				sourceColumn: [DAX-L3]
+
+			column Concepto
+				summarizeBy: none
+				sourceColumn: [Concepto]
+				sortByColumn: Orden
+
+			partition 'BQ-Malla-Waterfall' = calculated
+				mode: import
+				source = ```
+						DATATABLE (
+						    "Orden", INTEGER,
+						    "DAX-L3", STRING,
+						    "Concepto", STRING,
+						    "Grupo_Jerarquia", STRING,
+						    "Tipo", STRING,
+						    {
+						        { 1,  "Tiempo Máximo",       "Tiempo Máximo",                 "01. Tiempo Teórico Total",        "Subtotal" },
+						        { 2,  "WH11",                "Tiempo Legal No Operativo",      "02. Paros LNO / ND",              "Pérdida" },
+						        { 3,  "WH12",                "No Demanda",                    "02. Paros LNO / ND",              "Pérdida" },
+						        { 4,  "WH13",                "Fuerza Mayor",                  "02. Paros LNO / ND",              "Pérdida" },
+						        { 5,  "Tiempo Disponible",   "Tiempo Disponible",         "03. Tiempo Disponible",           "Subtotal" },
+						        { 6,  "WH21",                "Mantenimiento Planificado",      "04. Paradas Planificadas",        "Pérdida" },
+						        { 7,  "WH22",                "Mantenimiento Autónomo",         "04. Paradas Planificadas",        "Pérdida" },
+						        { 8,  "WH23",                "Sanitización",                  "04. Paradas Planificadas",        "Pérdida" },
+						        { 9,  "WH24",                "Cambio de Variedad",            "04. Paradas Planificadas",        "Pérdida" },
+						        { 10, "WH25",                "Paradas Planificadas",          "04. Paradas Planificadas",        "Pérdida" },
+						        { 11, "WH26",                "Reposición Consumibles",        "04. Paradas Planificadas",        "Pérdida" },
+						        { 12, "WH27",                "Inicio / Fin Producción",       "04. Paradas Planificadas",        "Pérdida" },
+						        { 13, "Tiempo Productivo",   "Tiempo Productivo",         "05. Tiempo Productivo",           "Subtotal" },
+						        { 14, "WH31",                "Gestión Labor",                 "06. Paradas No Planificadas",      "Pérdida" },
+						        { 15, "WH32",                "Falla de Materiales",           "06. Paradas No Planificadas",      "Pérdida" },
+						        { 16, "WH33",                "Paros Menores",                 "06. Paradas No Planificadas",      "Pérdida" },
+						        { 17, "WH34",                "Averías",                       "06. Paradas No Planificadas",      "Pérdida" },
+						        { 18, "WH35",                "Fallas Operacionales",          "06. Paradas No Planificadas",      "Pérdida" },
+						        { 19, "WH36",                "Demoras de Línea",              "06. Paradas No Planificadas",      "Pérdida" },
+						        { 20, "Tiempo Operativo",    "Tiempo Operativo",          "07. Tiempo Operativo",            "Subtotal" },
+						        { 21, "WXSL",                "Pérdida Velocidad (SL)",        "08. Pérdidas Eficiencia/Calidad",  "Pérdida" },
+						        { 22, "WXQL",                "Pérdida Calidad (QL)",          "08. Pérdidas Eficiencia/Calidad",  "Pérdida" },
+						        { 23, "WXFGT",               "Producción Conforme (FGT)",     "09. Salida Neta FGT",             "Subtotal" }
+						    }
+						)
+						```
+
+		// =========================================================================
+		// TABLE: Bridge_Plan_Real (Values-BQ: Plan Produccion Real)
+		// =========================================================================
+		table 'Values-BQ: Plan Produccion Real'
+			lineageTag: 25e23d25-1f70-4cc8-bd12-d59c4af1b42d
+
+			measure 'C2S Semana Real' = ```
+					VAR Plan = SUM('Values-BQ: Plan Produccion Real'[Total KG Planificados Semanal])
+					VAR Real = SUM('Values-BQ: Plan Produccion Real'[Total KG Entregados Semanal])
+					VAR vPlan = COALESCE(Plan, 0)
+					VAR vReal = COALESCE(Real, 0)
+					RETURN
+					IF(
+					    vPlan = 0 && vReal = 0,
+					    BLANK(),
+					    IF(
+					        vPlan = 0,
+					        0,
+					        VAR ErrorRatio = DIVIDE(ABS(vPlan - vReal), vPlan, 0)
+					        RETURN MAX(0, 1 - ErrorRatio)
+					    )
+					)
+					```
+
+			column Semana
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Semana]
+
+			column Linea
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [Linea]
+
+			column SKU
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [SKU]
+
+			column UID-PlanProduccion
+				summarizeBy: none
+				isNameInferred
+				sourceColumn: [UID-PlanProduccion]
+
+			partition 'Values-BQ: Plan Produccion Real' = calculated
+				mode: import
+				source = ```
+						VAR SKUsExcluidos = { "Sin Producción - L02", "Sin Producción - L04", "Sin Producción", "Sanitización" }
+						VAR TablaPlan = 
+						    FILTER(
+						        SUMMARIZE('Values-BQ: Plan Produccion', 'Values-BQ: Plan Produccion'[Semana], 'Values-BQ: Plan Produccion'[Linea], 'Values-BQ: Plan Produccion'[Variedad], 'Values-BQ: Plan Produccion'[Presentacion]),
+						        NOT('Values-BQ: Plan Produccion'[Variedad] IN SKUsExcluidos)
+						    )
+						VAR TablaReal = 
+						    FILTER(
+						        SUMMARIZE('BQ-Reportes-Produccion', 'BQ-Reportes-Produccion'[Semana], 'BQ-Reportes-Produccion'[Linea], 'BQ-Reportes-Produccion'[Variedad], 'BQ-Reportes-Produccion'[Presentacion]),
+						        NOT('BQ-Reportes-Produccion'[Variedad] IN SKUsExcluidos) && NOT(ISBLANK('BQ-Reportes-Produccion'[Semana]))
+						    )
+						VAR TablaUnificada = DISTINCT(UNION(TablaPlan, TablaReal))
+						RETURN
+						ADDCOLUMNS(
+						    TablaUnificada,
+						    "SKU", [Variedad] & " - " & [Presentacion],
+						    "UID-PlanProduccion", [Semana] & " - " & [Linea] & " - " & [Variedad] & " - " & [Presentacion]
+						)
+						```
+
+		// =========================================================================
+		// RELATIONSHIPS
+		// =========================================================================
+		relationship Rel_Prod_Turnos
+			fromColumn: 'BQ-Reportes-Produccion'.Turno
+			toColumn: 'MasterData-BQ: Turnos'.Turno
+
+		relationship Rel_Prod_Lineas
+			fromColumn: 'BQ-Reportes-Produccion'.Linea
+			toColumn: 'MasterData-BQ: Lineas'.Linea
+
+		relationship Rel_Prod_Fecha
+			fromColumn: 'BQ-Reportes-Produccion'.Fecha
+			toColumn: 'BQ-Malla-Calendario'.Date
+
+		relationship Rel_Prod_PlanReal
+			fromColumn: 'BQ-Reportes-Produccion'.'UID-PlanProduccion'
+			toColumn: 'Values-BQ: Plan Produccion Real'.'UID-PlanProduccion'
+
+		relationship Rel_Paradas_Fecha
+			fromColumn: 'BQ-Reportes-Paradas'.Fecha
+			toColumn: 'BQ-Malla-Calendario'.Date
+
+		relationship Rel_Paradas_Lineas
+			fromColumn: 'BQ-Reportes-Paradas'.Linea
+			toColumn: 'MasterData-BQ: Lineas'.Linea
+
+		relationship Rel_Plan_Calendario
+			crossFilteringBehavior: bothDirections
+			toCardinality: many
+			fromColumn: 'BQ-Malla-Calendario'.Semana
+			toColumn: 'Values-BQ: Plan Produccion Real'.Semana
